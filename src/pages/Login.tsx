@@ -12,21 +12,28 @@ import {
   Stack,
   InputAdornment,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
+import { toast } from "react-toastify";
 import Logo from "/logo.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async () => {
+    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      toast.success("Login realizado com sucesso!");
       navigate("/home");
     } catch (error) {
-      alert("Erro ao fazer login. Verifique seu e-mail e senha.");
+      toast.error("Erro ao fazer login. Verifique seu e-mail e senha.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,9 +94,14 @@ export default function Login() {
             variant="contained"
             size="large"
             onClick={handleLogin}
-            sx={{ borderRadius: 2 }}
+            disabled={loading}
+            sx={{ borderRadius: 2, position: "relative" }}
           >
-            Acessar
+            {loading ? (
+              <CircularProgress size={24} sx={{ color: "#fff" }} />
+            ) : (
+              "Acessar"
+            )}
           </Button>
         </Stack>
       </Paper>
