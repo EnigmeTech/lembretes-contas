@@ -30,7 +30,7 @@ export default function SplashScreen() {
       <img src={Logo} alt="Logo" className="splash-logo" />
 
       <Typography variant="h4" fontWeight="bold">
-        RememberMe
+        NextDue
       </Typography>
     </Box>
   );
