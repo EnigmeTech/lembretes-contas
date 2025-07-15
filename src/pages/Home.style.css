@@ -1,0 +1,41 @@
+@keyframes pulseDashboard {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4);
+  }
+  70% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+  }
+}
+
+.reminder-card {
+  background-color: #f5f5f5;
+  transition: all 0.3s ease-in-out;
+  padding: 16px;
+  border-radius: 12px;
+  min-width: 257px;
+  max-width: 257px;
+  height: 142px;
+  box-shadow: 1px #000000;
+}
+
+.reminder-today {
+  background-color: #ffcccb !important;
+}
+
+.reminder-due-soon {
+  background-color: #ffcccb !important;
+}
+
+.reminder-done {
+  background-color: #d0f0d0 !important;
+}
+
+.pulse-animation {
+  animation: pulseDashboard 5s ease-out;
+}
