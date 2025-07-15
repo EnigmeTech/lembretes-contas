@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { db, auth as firebaseAuth } from "../services/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import {
   Box,
   Typography,
@@ -23,6 +30,17 @@ export function CompletedReminders() {
   const [selectedReminder, setSelectedReminder] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [reminderToDelete, setReminderToDelete] = useState<any | null>(null);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "reminders", id));
+      setSelectedReminder(null);
+    } catch (error) {
+      console.error("Erro ao excluir lembrete:", error);
+    }
+  };
 
   useEffect(() => {
     const unsubscribeAuth = firebaseAuth.onAuthStateChanged((user) => {
@@ -192,10 +210,49 @@ export function CompletedReminders() {
           </DialogContent>
           <DialogActions>
             <Button
+              variant="contained"
+              color="error"
+              onClick={() => {
+                setReminderToDelete(selectedReminder);
+                setDeleteConfirmOpen(true);
+              }}
+            >
+              Excluir
+            </Button>
+            <Button
               onClick={() => setSelectedReminder(null)}
               variant="outlined"
             >
               Fechar
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+        >
+          <DialogTitle>Excluir Lembrete</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Tem certeza que deseja excluir{" "}
+              <strong>{reminderToDelete?.title}</strong>?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteConfirmOpen(false)}>Não</Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={async () => {
+                if (reminderToDelete?.id) {
+                  await handleDelete(reminderToDelete.id);
+                  setDeleteConfirmOpen(false);
+                  setReminderToDelete(null);
+                  setSelectedReminder(null);
+                }
+              }}
+            >
+              Sim
             </Button>
           </DialogActions>
         </Dialog>
