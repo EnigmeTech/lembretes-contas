@@ -7,18 +7,14 @@ import ApartmentIcon from "@mui/icons-material/Apartment";
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
-import { useAuthStatus } from "../pages/hooks/useAuthStatus";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuthStatus();
 
   const isDashboard = location.pathname === "/home";
   const isCompleted = location.pathname === "/concluidos";
   const isRentControl = location.pathname === "/alugueis";
-
-  const isAllowed = user?.email === "mongemateriais@hotmail.com";
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -72,7 +68,7 @@ export function Sidebar() {
         </Tooltip>
 
         {/* Aluguéis */}
-        {isAllowed && (
+        {
           <Tooltip title="Aluguéis" placement="right">
             <IconButton
               onClick={() => goTo("/alugueis")}
@@ -87,7 +83,7 @@ export function Sidebar() {
               <ApartmentIcon sx={{ fontSize: 36 }} />
             </IconButton>
           </Tooltip>
-        )}
+        }
       </Stack>
 
       {/* Logout */}
