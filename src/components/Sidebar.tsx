@@ -3,7 +3,6 @@ import HomeIcon from "@mui/icons-material/Home";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ApartmentIcon from "@mui/icons-material/Apartment";
-import PaymentsIcon from "@mui/icons-material/Payments";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -18,7 +17,6 @@ export function Sidebar() {
   const isDashboard = location.pathname === "/home";
   const isCompleted = location.pathname === "/concluidos";
   const isRentControl = location.pathname === "/alugueis";
-  const isPayments = location.pathname === "/payments";
 
   const isAllowed = user?.email === "mongemateriais@hotmail.com";
 
