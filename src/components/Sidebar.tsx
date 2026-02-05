@@ -2,15 +2,25 @@ import { Box, IconButton, Stack, Tooltip } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ApartmentIcon from "@mui/icons-material/Apartment";
+import PaymentsIcon from "@mui/icons-material/Payments";
+
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
+import { useAuthStatus } from "../pages/hooks/useAuthStatus";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStatus();
+
   const isDashboard = location.pathname === "/home";
   const isCompleted = location.pathname === "/concluidos";
+  const isRentControl = location.pathname === "/alugueis";
+  const isPayments = location.pathname === "/payments";
+
+  const isAllowed = user?.email === "mongemateriais@hotmail.com";
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -35,6 +45,7 @@ export function Sidebar() {
       sx={{ position: "fixed", left: 0, top: 0 }}
     >
       <Stack spacing={4} alignItems="center">
+        {/* Dashboard */}
         <Tooltip title="Dashboard" placement="right">
           <IconButton
             onClick={() => goTo("/home")}
@@ -48,6 +59,7 @@ export function Sidebar() {
           </IconButton>
         </Tooltip>
 
+        {/* Concluídos */}
         <Tooltip title="Concluídos" placement="right">
           <IconButton
             onClick={() => goTo("/concluidos")}
@@ -60,8 +72,27 @@ export function Sidebar() {
             <CheckCircleIcon sx={{ fontSize: 36 }} />
           </IconButton>
         </Tooltip>
+
+        {/* Aluguéis */}
+        {isAllowed && (
+          <Tooltip title="Aluguéis" placement="right">
+            <IconButton
+              onClick={() => goTo("/alugueis")}
+              sx={{
+                color: "white",
+                bgcolor: isRentControl
+                  ? "rgba(255,255,255,0.15)"
+                  : "transparent",
+                borderRadius: 2,
+              }}
+            >
+              <ApartmentIcon sx={{ fontSize: 36 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Stack>
 
+      {/* Logout */}
       <Box mb={6}>
         <Tooltip title="Sair" placement="right">
           <IconButton onClick={handleLogout} sx={{ color: "white" }}>

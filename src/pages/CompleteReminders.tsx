@@ -22,7 +22,7 @@ import {
   CircularProgress,
   TextField,
 } from "@mui/material";
-import { Sidebar } from "../components/Sidebar";
+import { Layout } from "../components/Layout";
 import "./Home.style.css";
 
 export function CompletedReminders() {
@@ -79,15 +79,12 @@ export function CompletedReminders() {
   };
 
   return (
-    <Box display="flex">
-      <Sidebar />
+    <Layout>
       <Box
         p={4}
         bgcolor="#fff"
         minHeight="100vh"
         flex={1}
-        ml="100px"
-        width="100vw"
       >
         <Typography variant="h4" color="primary" mb={2}>
           Lembretes Concluídos
@@ -126,13 +123,12 @@ export function CompletedReminders() {
                 const conclusionText =
                   reminder.periodicity === "none" || !reminder.periodicity
                     ? `✅ Concluído em: ${formattedDone}`
-                    : `✅ Concluído este ${
-                        reminder.periodicity === "weekly"
-                          ? "ciclo"
-                          : reminder.periodicity === "monthly"
-                          ? "mês"
-                          : "ano"
-                      }`;
+                    : `✅ Concluído este ${reminder.periodicity === "weekly"
+                      ? "ciclo"
+                      : reminder.periodicity === "monthly"
+                        ? "mês"
+                        : "ano"
+                    }`;
 
                 return (
                   <Grid key={reminder.id}>
@@ -257,6 +253,6 @@ export function CompletedReminders() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Box>
+    </Layout>
   );
 }

@@ -1,0 +1,34 @@
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-state-icon-wrapper {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.empty-state-icon-wrapper svg {
+  font-size: 32px;
+  color: #737373;
+}
+
+.empty-state-title {
+  color: #ffffff !important;
+  margin-bottom: 8px !important;
+}
+
+.empty-state-description {
+  color: #a3a3a3 !important;
+  max-width: 400px;
+}
+
+.empty-state-action {
+  margin-top: 24px;
+}

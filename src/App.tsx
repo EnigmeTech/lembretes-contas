@@ -5,6 +5,7 @@ import { Home } from "./pages/Home";
 import { CompletedReminders } from "./pages/CompleteReminders";
 import { ToastContainer } from "react-toastify";
 import { PrivateRoute } from "./components/PrivateRoute";
+import { RentIptuControl } from "./pages/RentIptuControl";
 
 function App() {
   return (
@@ -17,6 +18,10 @@ function App() {
           <Route
             path="/concluidos"
             element={<PrivateRoute element={<CompletedReminders />} />}
+          />
+          <Route
+            path="/alugueis"
+            element={<PrivateRoute element={<RentIptuControl />} />}
           />
         </Routes>
       </BrowserRouter>

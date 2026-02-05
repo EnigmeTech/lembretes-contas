@@ -35,7 +35,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
-import { Sidebar } from "../components/Sidebar";
+import { Layout } from "../components/Layout";
 import { onAuthStateChanged } from "firebase/auth";
 import "./Home.style.css";
 import { CircularProgress } from "@mui/material";
@@ -220,16 +220,8 @@ export function Home() {
   };
 
   return (
-    <Box display="flex">
-      <Sidebar />
-      <Box
-        p={4}
-        bgcolor="#fff"
-        minHeight="100vh"
-        flex={1}
-        ml="100px"
-        width="100vw"
-      >
+    <Layout>
+      <Box p={4} minHeight="100vh">
         <Typography variant="h4" color="primary" mb={2}>
           Meus Lembretes
         </Typography>
@@ -281,10 +273,10 @@ export function Home() {
                   reminder.done
                     ? "reminder-done"
                     : isToday
-                    ? "reminder-today"
-                    : isDueSoon
-                    ? "reminder-due-soon"
-                    : "",
+                      ? "reminder-today"
+                      : isDueSoon
+                        ? "reminder-due-soon"
+                        : "",
                   isDueSoon && animateHighlight ? "pulse-animation" : "",
                 ]
                   .filter(Boolean)
@@ -463,6 +455,6 @@ export function Home() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Box>
+    </Layout>
   );
 }
