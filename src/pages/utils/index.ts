@@ -64,3 +64,28 @@ export function formatDateInput(date: Date) {
   const d = pad2(date.getDate());
   return `${y}-${m}-${d}`;
 }
+
+export function parseReferenceMonthToDate(referenceMonth: string): Date | null {
+  const v = referenceMonth.trim();
+
+  let year: number | undefined;
+  let month: number | undefined;
+
+  let match = v.match(/^(\d{2})[\/-](\d{4})$/);
+  if (match) {
+    month = Number(match[1]) - 1;
+    year = Number(match[2]);
+  } else if ((match = v.match(/^(\d{4})[\/-](\d{2})$/))) {
+    year = Number(match[1]);
+    month = Number(match[2]) - 1;
+  } else if (/^\d{6}$/.test(v)) {
+    month = Number(v.slice(0, 2)) - 1;
+    year = Number(v.slice(2));
+  }
+
+  if (year === undefined || month === undefined || month < 0 || month > 11) {
+    return null;
+  }
+
+  return new Date(year, month, 1);
+}

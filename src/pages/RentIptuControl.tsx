@@ -69,6 +69,8 @@ import {
   statusLabel,
   ymFromDate,
 } from "./utils";
+import { downloadRentReceiptPdf } from "./helpers/generateRentReceiptPdf";
+import { InfiniteTable } from "../components/InfiniteTable";
 
 export function RentIptuControl() {
   const [uid, setUid] = useState<string | null>(null);
@@ -140,10 +142,15 @@ export function RentIptuControl() {
     "all"
   );
 
+  const PAGE_SIZE = 30;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   // confirm pay
   const [confirmType, setConfirmType] = useState<"rent" | "iptu">("rent");
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [confirmAmount, setConfirmAmount] = useState("0");
+  const [address, setAddress] = useState("");
+  const [editAddress, setEditAddress] = useState("");
 
   // --- AUTH + LISTENERS
   useEffect(() => {
@@ -228,6 +235,7 @@ export function RentIptuControl() {
       uid: property.uid,
       propertyId: property.id,
       propertyName: property.propertyName,
+
       responsibleName: property.responsibleName,
       referenceMonth,
       dueDate: Timestamp.fromDate(due),
@@ -303,6 +311,7 @@ export function RentIptuControl() {
     uid: string;
     propertyId: string;
     propertyName: string;
+    propertyAddress?: string;
     responsibleName: string;
     newRentValue: number;
     rentNext: Date;
@@ -337,6 +346,7 @@ export function RentIptuControl() {
       const data: Record<string, any> = {
         propertyName,
         responsibleName,
+        propertyAddress: (args as any).propertyAddress,
       };
 
       // só altera valor/vencimento/status se NÃO estiver pago (mantém histórico)
@@ -443,6 +453,7 @@ export function RentIptuControl() {
       uid,
       responsibleName: responsibleName.trim(),
       propertyName: propertyName.trim(),
+      address: address.trim() || undefined,
       rentValue: Number(rentValue),
 
       rentFirstDueDate: Timestamp.fromDate(normalizeDateToNoon(rentStart)),
@@ -475,6 +486,7 @@ export function RentIptuControl() {
 
       setResponsibleName("");
       setPropertyName("");
+      setAddress("");
       setRentValue("0");
       setRentFirstDueDate(formatDateInput(new Date()));
       setRentRecurrenceMonths("1");
@@ -555,6 +567,7 @@ export function RentIptuControl() {
     setEditTargetId(prop.id);
 
     setEditRentValue(String(prop.rentValue ?? 0));
+    setEditAddress(prop.address ?? "");
 
     const nextRent = prop.rentFirstDueDate?.toDate() ?? new Date();
     setEditRentNextDueDate(formatDateInput(nextRent));
@@ -605,6 +618,7 @@ export function RentIptuControl() {
       // 1) Atualiza o imóvel
       await updateDoc(doc(db, "properties", editTargetId), {
         rentValue: newRentValue,
+        address: editAddress.trim() || undefined,
         rentFirstDueDate: Timestamp.fromDate(normalizeDateToNoon(rentNext)),
         rentRecurrenceMonths: recurrence,
 
@@ -621,6 +635,7 @@ export function RentIptuControl() {
       const updatedProp: { id: string } & PropertyDoc = {
         ...prop,
         rentValue: newRentValue,
+        address: editAddress.trim() || undefined,
         rentFirstDueDate: Timestamp.fromDate(normalizeDateToNoon(rentNext)),
         rentRecurrenceMonths: recurrence,
         iptuTotal: iptuTotalNum,
@@ -633,17 +648,14 @@ export function RentIptuControl() {
       };
 
       await ensureRentForDueDate(updatedProp, rentNext);
-
-      // 3) Se tiver IPTU, tenta criar parcelas somente se ainda não existir no ano
       if (iptuTotalNum && iptuInstallmentsNum && iptuYearNum && iptuStart) {
         await createIptuInstallments(editTargetId, updatedProp);
       }
-
-      // 4) ✅ IMPORTANTE: sincroniza os lançamentos existentes pra refletir a edição na lista
       await syncRentPaymentsFromProperty({
         uid,
         propertyId: editTargetId,
         propertyName: updatedProp.propertyName,
+        propertyAddress: updatedProp.address,
         responsibleName: updatedProp.responsibleName,
         newRentValue,
         rentNext,
@@ -691,22 +703,40 @@ export function RentIptuControl() {
         const item = rentPayments.find((x) => x.id === confirmId);
         if (!item) return;
 
+        const prop = properties.find((p) => p.id === item.propertyId);
+
+        const paidDate = new Date();
+        const now = Timestamp.fromDate(paidDate);
+
+        // valor pago que você vai salvar (pode continuar usando o input)
+        const amountPaid = Number(confirmAmount || 0);
+
         await updateDoc(doc(db, "rent_payments", confirmId), {
           status: "paid",
           paidAt: now,
-          amount,
+          amount: amountPaid,
+        });
+        const receiptAmount = Number(prop?.rentValue ?? amountPaid);
+
+        downloadRentReceiptPdf({
+          propertyName: item.propertyName,
+          propertyAddress: prop?.address ?? item.propertyAddress ?? "-",
+          responsibleName: item.responsibleName,
+          referenceMonth: item.referenceMonth,
+          amount: receiptAmount,
+          paidAt: paidDate,
         });
 
-        const prop = properties.find((p) => p.id === item.propertyId);
         const stepMonths = Math.max(1, Number(prop?.rentRecurrenceMonths ?? 1));
-
         const nextDue = addMonths(item.dueDate.toDate(), stepMonths);
 
         if (prop) {
           await ensureRentForDueDate(prop, nextDue);
         }
 
-        toast.success("Aluguel confirmado e próximo vencimento criado!");
+        toast.success(
+          "Aluguel confirmado, recibo baixado e próximo vencimento criado!"
+        );
       } else {
         const item = iptuInstallments.find((x) => x.id === confirmId);
         if (!item) return;
@@ -846,6 +876,12 @@ export function RentIptuControl() {
       )
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [rentPayments, iptuInstallments, search, typeFilter, statusFilter]);
+
+  const hasMoreRows = visibleCount < rows.length;
+
+  const onLoadMoreRows = () => {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, rows.length));
+  };
 
   return (
     <Layout>
@@ -1025,81 +1061,74 @@ export function RentIptuControl() {
               </CardContent>
             </Card>
 
-            {/* TABLE */}
-            <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Tipo</TableCell>
-                    <TableCell>Imóvel</TableCell>
-                    <TableCell>Responsável</TableCell>
-                    <TableCell>Mês / Parcela</TableCell>
-                    <TableCell>Vencimento</TableCell>
-                    <TableCell align="right">Valor</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="right">Ações</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8}>
-                        <Typography variant="body2" color="text.secondary">
-                          Nada encontrado.
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    rows.map((r) => (
-                      <TableRow key={`${r.type}-${r.id}`}>
-                        <TableCell>
-                          <Chip label={r.type} size="small" />
-                        </TableCell>
-                        <TableCell>{r.propertyName}</TableCell>
-                        <TableCell>{r.responsibleName}</TableCell>
-                        <TableCell>{r.label}</TableCell>
-                        <TableCell>
-                          {r.dueDate.toLocaleDateString("pt-BR")}
-                        </TableCell>
-                        <TableCell align="right">
-                          {moneyBRL(r.amount || 0)}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={statusLabel(r.status)}
-                            color={statusChipColor(r.status)}
-                            size="small"
-                            variant={
-                              r.status === "open" ? "outlined" : "filled"
-                            }
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          {r.status !== "paid" && (
-                            <Tooltip title="Confirmar pagamento">
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() =>
-                                  openConfirm(
-                                    r.type === "Aluguel" ? "rent" : "iptu",
-                                    r.id,
-                                    r.amount || 0
-                                  )
-                                }
-                                sx={{ textTransform: "none", mr: 1 }}
-                              >
-                                Confirmar
-                              </Button>
-                            </Tooltip>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <InfiniteTable
+              columns={[
+                { label: "Tipo" },
+                { label: "Imóvel" },
+                { label: "Responsável" },
+                { label: "Mês / Parcela" },
+                { label: "Vencimento" },
+                { label: "Valor", align: "right" },
+                { label: "Status" },
+                { label: "Ações", align: "right" },
+              ]}
+              data={rows.slice(0, visibleCount)}
+              renderRow={(r: any) => (
+                <TableRow key={`${r.type}-${r.id}`}>
+                  <TableCell>
+                    <Chip label={r.type} size="small" />
+                  </TableCell>
+
+                  <TableCell>{r.propertyName}</TableCell>
+                  <TableCell>{r.responsibleName}</TableCell>
+                  <TableCell>{r.label}</TableCell>
+
+                  <TableCell>{r.dueDate.toLocaleDateString("pt-BR")}</TableCell>
+
+                  <TableCell align="right">{moneyBRL(r.amount || 0)}</TableCell>
+
+                  <TableCell>
+                    <Chip
+                      label={statusLabel(r.status)}
+                      color={statusChipColor(r.status)}
+                      size="small"
+                      variant={r.status === "open" ? "outlined" : "filled"}
+                    />
+                  </TableCell>
+
+                  <TableCell align="right">
+                    {r.status !== "paid" && (
+                      <Tooltip title="Confirmar pagamento">
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() =>
+                            openConfirm(
+                              r.type === "Aluguel" ? "rent" : "iptu",
+                              r.id,
+                              r.amount || 0
+                            )
+                          }
+                          sx={{ textTransform: "none" }}
+                        >
+                          Confirmar
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+              loadingInitial={loading}
+              loadingMore={false}
+              onLoadMore={onLoadMoreRows}
+              hasMore={hasMoreRows}
+              error={null}
+              emptyState={{
+                title: "Nada encontrado",
+                description: "Tente ajustar os filtros ou a busca.",
+              }}
+              maxHeight="62vh"
+            />
 
             {/* PROPERTIES LIST */}
             <Box mt={3}>
@@ -1199,7 +1228,13 @@ export function RentIptuControl() {
               value={propertyName}
               onChange={(e) => setPropertyName(e.target.value)}
             />
-
+            <TextField
+              label="Endereço do imóvel"
+              fullWidth
+              sx={{ mt: 2 }}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
             <TextField
               label="Valor do aluguel (R$)"
               type="number"
@@ -1314,6 +1349,13 @@ export function RentIptuControl() {
               Aluguel
             </Typography>
 
+            <TextField
+              label="Endereço do imóvel"
+              fullWidth
+              sx={{ mt: 2 }}
+              value={editAddress}
+              onChange={(e) => setEditAddress(e.target.value)}
+            />
             <TextField
               label="Valor do aluguel (R$)"
               type="number"
