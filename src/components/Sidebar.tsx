@@ -3,6 +3,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ApartmentIcon from "@mui/icons-material/Apartment";
+import CarRepairIcon from "@mui/icons-material/CarRepair";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -84,6 +85,22 @@ export function Sidebar() {
             </IconButton>
           </Tooltip>
         }
+
+        {/* Manutenção de Carros */}
+        <Tooltip title="Manutenção Carros" placement="right">
+          <IconButton
+            onClick={() => goTo("/manutencao-carros")}
+            sx={{
+              color: "white",
+              bgcolor: location.pathname === "/manutencao-carros"
+                ? "rgba(255,255,255,0.15)"
+                : "transparent",
+              borderRadius: 2,
+            }}
+          >
+            <CarRepairIcon sx={{ fontSize: 36 }} />
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       {/* Logout */}

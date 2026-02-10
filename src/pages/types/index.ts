@@ -46,3 +46,18 @@ export interface RentPaymentDoc {
   createdAt: any;
   paidAt?: any;
 }
+
+export type MaintenanceRecurrence = "annual" | "monthly" | "one-time";
+
+export interface CarMaintenanceDoc {
+  uid: string;
+  carName: string;
+  carPlate?: string; // ✅ novo
+  serviceName: string;
+  serviceDate: any; // Timestamp or Date
+  chassis?: string; // ✅ novo (substituindo cost)
+  location?: string;
+  recurrence: MaintenanceRecurrence;
+  nextDueDate?: any; // Calculated if recurrence != one-time
+  createdAt: any;
+}
