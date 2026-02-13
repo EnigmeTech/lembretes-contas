@@ -37,6 +37,7 @@ import {
   Tooltip,
   TableRow,
   TableCell,
+  Menu,
 } from "@mui/material";
 
 import Grid from "@mui/material/Grid";
@@ -46,6 +47,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import PaidIcon from "@mui/icons-material/Paid";
 import HomeIcon from "@mui/icons-material/Home";
 import EditIcon from "@mui/icons-material/Edit";
+import SortIcon from "@mui/icons-material/Sort";
 import { toast } from "react-toastify";
 import type {
   IptuInstallmentDoc,
@@ -146,6 +148,16 @@ export function RentIptuControl() {
   const [confirmAmount, setConfirmAmount] = useState("0");
   const [address, setAddress] = useState("");
   const [editAddress, setEditAddress] = useState("");
+
+  // sort
+  const [sortOption, setSortOption] = useState<
+    | "date_asc"
+    | "date_desc"
+    | "property_asc"
+    | "value_desc"
+    | "status_priority"
+  >("status_priority"); // Default to status priority as requested
+  const [anchorElSort, setAnchorElSort] = useState<null | HTMLElement>(null);
 
   // --- AUTH + LISTENERS
   useEffect(() => {
@@ -784,6 +796,41 @@ export function RentIptuControl() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
+  const checkAndGenerateNextRents = async () => {
+    if (!properties.length) return;
+
+    for (const prop of properties) {
+      const payments = rentPayments.filter((p) => p.propertyId === prop.id);
+      if (!payments.length) continue;
+      const sorted = [...payments].sort(
+        (a, b) => b.dueDate.seconds - a.dueDate.seconds
+      );
+      const lastPayment = sorted[0];
+
+      if (!lastPayment) continue;
+
+      const lastDueDate = lastPayment.dueDate.toDate();
+      const now = new Date();
+      const todayNoon = normalizeDateToNoon(now);
+      const lastDueNoon = normalizeDateToNoon(lastDueDate);
+
+      if (todayNoon > lastDueNoon) {
+        const recurrence = Math.max(1, Number(prop.rentRecurrenceMonths || 1));
+        const nextDue = addMonths(lastDueDate, recurrence);
+
+        await ensureRentForDueDate(prop, nextDue);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!uid || loading) return;
+    if (properties.length > 0 && rentPayments.length > 0) {
+      checkAndGenerateNextRents();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, loading, properties, rentPayments]);
+
   // --- SUMMARY
   const rentSummary = useMemo(() => {
     const nowYM = ymFromDate(new Date());
@@ -863,14 +910,41 @@ export function RentIptuControl() {
         typeFilter === "all"
           ? true
           : typeFilter === "rent"
-          ? r.type === "Aluguel"
-          : r.type === "IPTU"
+            ? r.type === "Aluguel"
+            : r.type === "IPTU"
       )
       .filter((r) =>
         statusFilter === "all" ? true : r.status === statusFilter
       )
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }, [rentPayments, iptuInstallments, search, typeFilter, statusFilter]);
+      .sort((a, b) => {
+        if (sortOption === "date_asc") {
+          return a.dueDate.getTime() - b.dueDate.getTime();
+        } else if (sortOption === "date_desc") {
+          return b.dueDate.getTime() - a.dueDate.getTime();
+        } else if (sortOption === "property_asc") {
+          return a.propertyName.localeCompare(b.propertyName);
+        } else if (sortOption === "value_desc") {
+          return (b.amount || 0) - (a.amount || 0);
+        } else if (sortOption === "status_priority") {
+          // Priority: Overdue (0) -> Open (1) -> Paid (2)
+          const priority = { overdue: 0, open: 1, paid: 2 };
+          const pA = priority[a.status as keyof typeof priority] ?? 99;
+          const pB = priority[b.status as keyof typeof priority] ?? 99;
+
+          if (pA !== pB) return pA - pB;
+          // Ties broken by due date (oldest first for urgency)
+          return a.dueDate.getTime() - b.dueDate.getTime();
+        }
+        return 0;
+      });
+  }, [
+    rentPayments,
+    iptuInstallments,
+    search,
+    typeFilter,
+    statusFilter,
+    sortOption,
+  ]);
 
   const hasMoreRows = visibleCount < rows.length;
 
@@ -1011,7 +1085,7 @@ export function RentIptuControl() {
             <Card sx={{ borderRadius: 3, mb: 2 }}>
               <CardContent>
                 <Grid container spacing={2} alignItems="center">
-                  <Grid sx={{ xs: 12, md: 6 }}>
+                  <Grid sx={{ xs: 12, md: 5 }}>
                     <TextField
                       label="Buscar (imóvel, responsável, mês/parcela)"
                       value={search}
@@ -1051,6 +1125,76 @@ export function RentIptuControl() {
                         <MenuItem value="paid">Pago</MenuItem>
                       </Select>
                     </FormControl>
+                  </Grid>
+
+                  <Grid
+                    sx={{
+                      xs: 12,
+                      md: 1,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Tooltip title="Ordenar lista">
+                      <IconButton
+                        onClick={(e) => setAnchorElSort(e.currentTarget)}
+                      >
+                        <SortIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Menu
+                      anchorEl={anchorElSort}
+                      open={Boolean(anchorElSort)}
+                      onClose={() => setAnchorElSort(null)}
+                    >
+                      <MenuItem
+                        onClick={() => {
+                          setSortOption("status_priority");
+                          setAnchorElSort(null);
+                        }}
+                        selected={sortOption === "status_priority"}
+                        sx={{ fontWeight: "bold", color: "primary.main" }}
+                      >
+                        Status (Atrasados primeiro)
+                      </MenuItem>
+                      <Divider />
+                      <MenuItem
+                        onClick={() => {
+                          setSortOption("date_asc");
+                          setAnchorElSort(null);
+                        }}
+                        selected={sortOption === "date_asc"}
+                      >
+                        Data (Mais antigos)
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          setSortOption("date_desc");
+                          setAnchorElSort(null);
+                        }}
+                        selected={sortOption === "date_desc"}
+                      >
+                        Data (Mais recentes)
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          setSortOption("property_asc");
+                          setAnchorElSort(null);
+                        }}
+                        selected={sortOption === "property_asc"}
+                      >
+                        Imóvel (A-Z)
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          setSortOption("value_desc");
+                          setAnchorElSort(null);
+                        }}
+                        selected={sortOption === "value_desc"}
+                      >
+                        Valor (Maior - Menor)
+                      </MenuItem>
+                    </Menu>
                   </Grid>
                 </Grid>
               </CardContent>
